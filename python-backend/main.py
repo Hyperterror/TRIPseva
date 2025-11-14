@@ -22,7 +22,10 @@ app = FastAPI(title="TripSync AI Itinerary API")
 
 # Configure CORS
 # Get allowed origins from environment or use defaults
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,https://*.vercel.app").split(",")
+ALLOWED_ORIGINS = os.getenv(
+    "ALLOWED_ORIGINS", 
+    "http://localhost:3000,https://tripseva.vercel.app,https://*.vercel.app"
+).split(",")
 
 app.add_middleware(
     CORSMiddleware,
