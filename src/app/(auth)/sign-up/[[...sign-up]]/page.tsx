@@ -18,47 +18,108 @@ export default function CustomSignUpPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Validate and sanitize username
+  const sanitizeUsername = (value: string) => {
+    // Remove any characters that aren't letters, numbers, hyphens, or underscores
+    return value.replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase();
+  };
+
+  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const sanitized = sanitizeUsername(e.target.value);
+    setUsername(sanitized);
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoaded) return;
+    if (!isLoaded || !signUp) return;
 
     setLoading(true);
     setError(null);
 
     try {
+      // Validate username format
+      if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+        setError("Username can only contain letters, numbers, hyphens (-), and underscores (_)");
+        setLoading(false);
+        return;
+      }
+
+      if (username.length < 3) {
+        setError("Username must be at least 3 characters long");
+        setLoading(false);
+        return;
+      }
+
+      // Create sign-up
       const result = await signUp.create({
         emailAddress: email,
         password,
-        username,
+        username: username.toLowerCase(),
       });
 
       if (result.status === "complete") {
+        // Set active session
         await setActive({ session: result.createdSessionId });
         
         // Wait for session to be fully set
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise(resolve => setTimeout(resolve, 300));
         
-        // Create user in database
+        // Create user in database with timeout
         try {
-          await axios.get("/api/createuser");
+          await Promise.race([
+            axios.get("/api/createuser", { timeout: 10000 }),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error("Database timeout")), 10000)
+            )
+          ]);
         } catch (dbError) {
           console.error("Failed to create user in database:", dbError);
-          // Continue anyway - user exists in Clerk
+          // Continue anyway - user exists in Clerk, can be created later
         }
         
         // Redirect to preferences onboarding
         router.push("/onboarding/preferences");
-      } else {
+      } else if (result.status === "missing_requirements") {
+        // Need email verification
         await signUp.prepareEmailAddressVerification({
           strategy: "email_code",
         });
         router.push("/verify-email");
+      } else {
+        // Other status - try email verification
+        try {
+          await signUp.prepareEmailAddressVerification({
+            strategy: "email_code",
+          });
+          router.push("/verify-email");
+        } catch (verifyErr) {
+          console.error("Verification error:", verifyErr);
+          setError("Unable to complete sign-up. Please try again.");
+        }
       }
     } catch (err: any) {
       console.error("Sign-up error:", err);
-      const errorMessage = err.errors?.[0]?.longMessage || 
-                          err.errors?.[0]?.message || 
-                          "Something went wrong. Please try again.";
+      
+      // Extract error message
+      let errorMessage = "Something went wrong. Please try again.";
+      
+      if (err.errors && err.errors.length > 0) {
+        errorMessage = err.errors[0].longMessage || err.errors[0].message;
+        
+        // Handle specific error codes
+        if (err.errors[0].code === "form_identifier_exists") {
+          errorMessage = "An account with this email already exists. Please sign in instead.";
+        } else if (err.errors[0].code === "form_username_invalid") {
+          errorMessage = "Username can only contain letters, numbers, hyphens (-), and underscores (_)";
+        } else if (err.errors[0].code === "form_password_pwned") {
+          errorMessage = "This password has been found in a data breach. Please choose a different password.";
+        } else if (err.errors[0].code === "form_password_length_too_short") {
+          errorMessage = "Password must be at least 8 characters long.";
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -112,10 +173,15 @@ export default function CustomSignUpPage() {
                 className="input-field w-full"
                 placeholder="Choose a username"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={handleUsernameChange}
                 required
                 autoComplete="username"
+                pattern="[a-zA-Z0-9_-]+"
+                minLength={3}
               />
+              <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
+                Only letters, numbers, hyphens (-), and underscores (_)
+              </p>
             </div>
 
             {/* Email Field */}

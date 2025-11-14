@@ -34,8 +34,11 @@ export async function POST(req: Request) {
     const tripId = body.id;
     if (!tripId) return NextResponse.json({ error: "Trip ID missing" }, { status: 400 });
 
-    const trip = (await TripRequest.findById(tripId).lean()) as TripRequestType | null;
+    const trip: any = await TripRequest.findById(tripId).lean();
     if (!trip) return NextResponse.json({ error: "Trip not found" }, { status: 404 });
+
+    // Check if current user is the trip creator
+    const isCreator = trip.userId === user.id;
 
     let group = (await TripGroup.findOne({ tripRequestIds: trip._id }).lean()) as TripGroupType | null;
 
@@ -53,9 +56,14 @@ export async function POST(req: Request) {
       }).lean();
     }
 
-    
-
-    return NextResponse.json({ trip, group, isMember, invitation }, { status: 200 });
+    return NextResponse.json({ 
+      trip, 
+      group, 
+      isMember, 
+      invitation,
+      isCreator,
+      currentUserId: user.id
+    }, { status: 200 });
   } catch (error) {
     console.error("Trip POST error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

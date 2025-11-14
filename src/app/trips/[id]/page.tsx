@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import PostTripRatingPrompt from "@/components/ratings/PostTripRatingPrompt";
+import JoinRequestsManager from "@/components/trips/JoinRequestsManager";
 import '../../../styles/design-system.css';
 
 interface Trip {
@@ -57,6 +58,8 @@ interface TripDataResponse {
   group: TripGroup | null;
   isMember: boolean;
   invitation: any;
+  isCreator?: boolean;
+  currentUserId?: string;
 }
 
 export default function TripDetailPage() {
@@ -150,7 +153,7 @@ export default function TripDetailPage() {
       </div>
     );
 
-  const { trip, group, isMember, invitation } = tripData;
+  const { trip, group, isMember, invitation, isCreator, currentUserId } = tripData;
 
   return (
     <div className="min-h-screen p-6 md:p-10" style={{ background: 'var(--bg-primary)' }}>
@@ -270,6 +273,11 @@ export default function TripDetailPage() {
                 </div>
               )}
             </div>
+
+            {/* Join Requests Manager (for trip creator) */}
+            {isCreator && (
+              <JoinRequestsManager tripId={trip._id} isCreator={isCreator} />
+            )}
 
             {/* Join Request Card */}
             {!isMember && (
