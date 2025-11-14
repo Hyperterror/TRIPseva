@@ -436,7 +436,7 @@ export default function TripDetailPage() {
                     setItinerary(null);
                     try {
                       const res = await axios.post(
-                        "/api/itinerary/generate", 
+                        "http://localhost:8000/api/generate-itinerary", 
                         { 
                           location: tripData.trip.location, 
                           date_from: tripData.trip.date_from, 

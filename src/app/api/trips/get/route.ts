@@ -81,8 +81,13 @@ export async function POST(req: Request) {
       isCreator,
       currentUserId: user.id
     }, { status: 200 });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Trip POST error:", error);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
+    return NextResponse.json({ 
+      error: "Server error", 
+      details: error.message 
+    }, { status: 500 });
   }
 }
