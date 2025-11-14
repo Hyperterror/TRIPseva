@@ -432,21 +432,47 @@ export default function TripDetailPage() {
                 <button
                   onClick={async () => {
                     if (!tripData) return;
-                    setGenerating(true); setItinerary(null);
+                    setGenerating(true); 
+                    setItinerary(null);
                     try {
-                      const res = await axios.post("https://tripsync-backend-14jw.onrender.com/generate-itinerary", { 
-                        tripId: tripData.trip._id, 
-                        location: tripData.trip.location, 
-                        date_from: tripData.trip.date_from, 
-                        date_to: tripData.trip.date_to, 
-                        interests: tripData.trip.interests, 
-                        group_size: tripData.trip.group_size_pref 
-                      });
-                      setItinerary(res.data.itinerary);
-                    } catch (err) { 
-                      setItinerary("❌ Failed to generate itinerary. Please try again."); 
+                      const res = await axios.post(
+                        "/api/itinerary/generate", 
+                        { 
+                          location: tripData.trip.location, 
+                          date_from: tripData.trip.date_from, 
+                          date_to: tripData.trip.date_to, 
+                          interests: tripData.trip.interests, 
+                          group_size: tripData.trip.group_size_pref 
+                        },
+                        {
+                          timeout: 60000, // 60 second timeout for AI generation
+                        }
+                      );
+                      
+                      if (res.data && res.data.itinerary) {
+                        setItinerary(res.data.itinerary);
+                      } else {
+                        setItinerary("❌ No itinerary returned. Please try again.");
+                      }
+                    } catch (err: any) {
+                      console.error("Itinerary generation error:", err);
+                      
+                      let errorMessage = "❌ Failed to generate itinerary. ";
+                      
+                      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+                        errorMessage += "The request timed out. The AI service might be slow. Please try again.";
+                      } else if (err.response) {
+                        errorMessage += `Server error: ${err.response.status}. Please try again later.`;
+                      } else if (err.request) {
+                        errorMessage += "Cannot reach the AI service. Please check your internet connection.";
+                      } else {
+                        errorMessage += "Please try again.";
+                      }
+                      
+                      setItinerary(errorMessage);
+                    } finally { 
+                      setGenerating(false); 
                     }
-                    finally { setGenerating(false); }
                   }}
                   disabled={generating}
                   className="btn-primary w-full py-3 rounded-xl font-semibold hover:scale-105 transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
