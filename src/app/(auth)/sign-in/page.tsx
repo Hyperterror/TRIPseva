@@ -21,54 +21,39 @@ export default function CustomSignInPage() {
     setError(null);
 
     try {
-      // Attempt to sign in with strategy
-      const signInAttempt = await signIn.create({ 
-        identifier: email, 
+      // Attempt to sign in
+      const result = await signIn.create({
+        identifier: email,
         password,
-        strategy: "password"
       });
 
-      console.log("Sign-in attempt status:", signInAttempt.status);
+      console.log("Sign-in result status:", result.status);
 
-      // Handle complete sign-in
-      if (signInAttempt.status === "complete") {
-        await setActive({ session: signInAttempt.createdSessionId });
-        
-        // Small delay to ensure session is set
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
-        // Redirect to home
+      // If sign-in is complete, set the session
+      if (result.status === "complete") {
+        await setActive({ session: result.createdSessionId });
         window.location.href = "/";
         return;
       }
 
-      // If not complete, try to complete it with first factor
-      if (signInAttempt.status === "needs_first_factor") {
-        try {
-          const attemptFirstFactor = await signInAttempt.attemptFirstFactor({
-            strategy: "password",
-            password: password
-          });
+      // If needs first factor (shouldn't happen with password, but handle it)
+      if (result.status === "needs_first_factor") {
+        console.log("Needs first factor - attempting password");
+        const firstFactorResult = await result.attemptFirstFactor({
+          strategy: "password",
+          password: password,
+        });
 
-          if (attemptFirstFactor.status === "complete") {
-            await setActive({ session: attemptFirstFactor.createdSessionId });
-            await new Promise(resolve => setTimeout(resolve, 200));
-            window.location.href = "/";
-            return;
-          }
-        } catch (factorErr: any) {
-          console.error("First factor error:", factorErr);
-          throw factorErr;
+        if (firstFactorResult.status === "complete") {
+          await setActive({ session: firstFactorResult.createdSessionId });
+          window.location.href = "/";
+          return;
         }
       }
 
-      // Handle other statuses
-      if (signInAttempt.status === "needs_second_factor") {
-        setError("Two-factor authentication is required. This feature is not yet supported.");
-      } else {
-        console.error("Unexpected sign-in status:", signInAttempt.status);
-        setError("Unable to complete sign-in. Please try again or contact support.");
-      }
+      // If we get here, something unexpected happened
+      console.error("Unexpected sign-in status:", result.status);
+      setError("Unable to sign in. Please try again.");
 
     } catch (err: any) {
       console.error("Sign-in error:", err);
@@ -77,16 +62,19 @@ export default function CustomSignInPage() {
       let errorMessage = "Invalid email or password. Please try again.";
       
       if (err.errors && err.errors.length > 0) {
-        errorMessage = err.errors[0].longMessage || err.errors[0].message;
+        const firstError = err.errors[0];
+        errorMessage = firstError.longMessage || firstError.message;
+        
+        // Handle specific error codes
+        if (firstError.code === "form_identifier_not_found") {
+          errorMessage = "No account found with this email. Please sign up first.";
+        } else if (firstError.code === "form_password_incorrect") {
+          errorMessage = "Incorrect password. Please try again.";
+        } else if (firstError.code === "form_password_pwned") {
+          errorMessage = "This password has been compromised. Please use a different password.";
+        }
       } else if (err.message) {
         errorMessage = err.message;
-      }
-      
-      // Check for specific error codes
-      if (err.errors?.[0]?.code === "form_identifier_not_found") {
-        errorMessage = "No account found with this email. Please sign up first.";
-      } else if (err.errors?.[0]?.code === "form_password_incorrect") {
-        errorMessage = "Incorrect password. Please try again.";
       }
       
       setError(errorMessage);
