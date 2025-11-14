@@ -111,6 +111,7 @@ export async function GET(request: NextRequest) {
       const compatibilityScores = [];
       const allMatchReasons: string[] = [];
       const memberInfo: MemberInfo[] = [];
+      let skipGroup = false;
 
       for (const memberId of group.members) {
         // Fetch member preferences
@@ -119,46 +120,66 @@ export async function GET(request: NextRequest) {
           FoodPreferences.findOne({ userId: memberId })
         ]);
 
-        // Apply lifestyle filters
-        if (alcoholFilter && memberLifestylePrefs?.alcoholConsumption !== alcoholFilter) {
-          continue; // Skip this member if they don't match alcohol filter
+        // Apply lifestyle filters (only if filter is set AND member has preferences)
+        if (alcoholFilter && memberLifestylePrefs?.alcoholConsumption && 
+            memberLifestylePrefs.alcoholConsumption !== alcoholFilter) {
+          skipGroup = true;
+          break;
         }
         
-        if (smokingFilter && memberLifestylePrefs?.smoking !== smokingFilter) {
-          continue; // Skip this member if they don't match smoking filter
+        if (smokingFilter && memberLifestylePrefs?.smoking && 
+            memberLifestylePrefs.smoking !== smokingFilter) {
+          skipGroup = true;
+          break;
         }
         
-        if (activityFilter && memberLifestylePrefs?.activityLevel !== activityFilter) {
-          continue; // Skip this member if they don't match activity filter
+        if (activityFilter && memberLifestylePrefs?.activityLevel && 
+            memberLifestylePrefs.activityLevel !== activityFilter) {
+          skipGroup = true;
+          break;
         }
         
-        // Apply dietary filters
-        if (dietaryFilter && dietaryFilter.length > 0) {
+        // Apply dietary filters (only if filter is set AND member has preferences)
+        if (dietaryFilter && dietaryFilter.length > 0 && memberFoodPrefs?.dietaryRestrictions) {
           const hasMatchingDiet = dietaryFilter.some(diet =>
-            memberFoodPrefs?.dietaryRestrictions.includes(diet)
+            memberFoodPrefs.dietaryRestrictions.includes(diet)
           );
           if (!hasMatchingDiet) {
-            continue; // Skip this member if they don't match dietary filters
+            skipGroup = true;
+            break;
           }
         }
 
         // Calculate compatibility
-        const compatibility = compatibilityService.calculateCompatibility(
-          {
-            lifestyle: userLifestylePrefs || null,
-            food: userFoodPrefs || null
-          },
-          {
-            lifestyle: memberLifestylePrefs || null,
-            food: memberFoodPrefs || null
-          }
-        );
+        // If either user has no preferences, use a default score of 0.7 (70%)
+        let compatibilityScore = 0.7; // Default neutral score
+        let matchReasons: string[] = [];
 
-        compatibilityScores.push(compatibility.score);
+        if (userLifestylePrefs || userFoodPrefs || memberLifestylePrefs || memberFoodPrefs) {
+          try {
+            const compatibility = compatibilityService.calculateCompatibility(
+              {
+                lifestyle: userLifestylePrefs || null,
+                food: userFoodPrefs || null
+              },
+              {
+                lifestyle: memberLifestylePrefs || null,
+                food: memberFoodPrefs || null
+              }
+            );
+            compatibilityScore = compatibility.score;
+            matchReasons = compatibility.matchReasons || [];
+          } catch (error) {
+            console.error('Compatibility calculation error:', error);
+            // Keep default score of 0.7
+          }
+        }
+
+        compatibilityScores.push(compatibilityScore);
         
         // Collect match reasons
-        if (compatibility.matchReasons) {
-          allMatchReasons.push(...compatibility.matchReasons);
+        if (matchReasons.length > 0) {
+          allMatchReasons.push(...matchReasons);
         }
         
         // Fetch member rating summary
@@ -171,10 +192,13 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      // Skip this group if filters didn't match
+      if (skipGroup) continue;
+
       // Calculate average compatibility with group
       const avgCompatibility = compatibilityScores.length > 0
         ? compatibilityScores.reduce((sum, score) => sum + score, 0) / compatibilityScores.length
-        : 0;
+        : 0.7; // Default to 70% if no scores
 
       // Filter by minimum compatibility
       if (avgCompatibility < minCompatibility) continue;

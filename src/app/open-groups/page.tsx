@@ -39,7 +39,7 @@ interface GroupSuggestion {
 export default function OpenGroupsPage() {
   const [groups, setGroups] = useState<GroupSuggestion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [minCompatibility, setMinCompatibility] = useState(0.6);
+  const [minCompatibility, setMinCompatibility] = useState(0.5); // Start at 50% for better discovery
   const [locationFilter, setLocationFilter] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   
@@ -52,7 +52,12 @@ export default function OpenGroupsPage() {
   const [dietaryFilters, setDietaryFilters] = useState<string[]>([]);
 
   useEffect(() => {
-    fetchGroupSuggestions();
+    // Debounce the API call to prevent rapid requests
+    const timeoutId = setTimeout(() => {
+      fetchGroupSuggestions();
+    }, 300); // Wait 300ms after user stops typing/changing filters
+
+    return () => clearTimeout(timeoutId);
   }, [minCompatibility, locationFilter, alcoholFilter, smokingFilter, activityFilter, dietaryFilters]);
 
   const fetchGroupSuggestions = async () => {
@@ -268,7 +273,7 @@ export default function OpenGroupsPage() {
               <div className="flex justify-end">
                 <button
                   onClick={() => {
-                    setMinCompatibility(0.6);
+                    setMinCompatibility(0.5);
                     setLocationFilter('');
                     setAlcoholFilter('');
                     setSmokingFilter('');
