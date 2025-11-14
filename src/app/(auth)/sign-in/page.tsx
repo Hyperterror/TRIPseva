@@ -1,87 +1,10 @@
 "use client";
 
-import { useSignIn } from "@clerk/nextjs";
-import { useState } from "react";
-import { Compass, Mail, Lock, Loader2, ArrowRight } from "lucide-react";
-import Link from "next/link";
+import { SignIn } from "@clerk/nextjs";
+import { Compass } from "lucide-react";
 import '../../../styles/design-system.css';
 
 export default function CustomSignInPage() {
-  const { signIn, setActive, isLoaded } = useSignIn();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isLoaded || !signIn) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Create sign-in attempt with password strategy
-      const signInAttempt = await signIn.create({
-        identifier: email,
-        password,
-      });
-
-      console.log("Sign-in attempt status:", signInAttempt.status);
-
-      // Check if sign-in is complete
-      if (signInAttempt.status === "complete") {
-        await setActive({ session: signInAttempt.createdSessionId });
-        window.location.href = "/";
-        return;
-      }
-
-      // Handle needs_first_factor status
-      if (signInAttempt.status === "needs_first_factor") {
-        // Attempt first factor with password
-        const attemptResult = await signInAttempt.attemptFirstFactor({
-          strategy: "password",
-          password: password,
-        });
-
-        if (attemptResult.status === "complete") {
-          await setActive({ session: attemptResult.createdSessionId });
-          window.location.href = "/";
-          return;
-        }
-      }
-
-      // If we reach here, log the status and show error
-      console.error("Unexpected sign-in status:", signInAttempt.status, signInAttempt);
-      setError("Unable to complete sign-in. Please try again or contact support.");
-
-    } catch (err: any) {
-      console.error("Sign-in error:", err);
-      
-      // Extract error message
-      let errorMessage = "Invalid email or password. Please try again.";
-      
-      if (err.errors && err.errors.length > 0) {
-        const firstError = err.errors[0];
-        errorMessage = firstError.longMessage || firstError.message;
-        
-        // Handle specific error codes
-        if (firstError.code === "form_identifier_not_found") {
-          errorMessage = "No account found with this email. Please sign up first.";
-        } else if (firstError.code === "form_password_incorrect") {
-          errorMessage = "Incorrect password. Please try again.";
-        } else if (firstError.code === "form_password_pwned") {
-          errorMessage = "This password has been compromised. Please use a different password.";
-        }
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div 
@@ -113,95 +36,24 @@ export default function CustomSignInPage() {
           </p>
         </div>
 
-        {/* Sign In Card */}
-        <div className="card-featured p-8">
-          <form onSubmit={handleSignIn} className="space-y-6">
-            {/* Email Field */}
-            <div>
-              <label 
-                className="block text-sm font-semibold mb-2"
-                style={{ color: 'var(--color-warm-brown)' }}
-              >
-                <Mail className="inline h-4 w-4 mr-1" />
-                Email Address
-              </label>
-              <input
-                type="email"
-                className="input-field w-full"
-                placeholder="your@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-
-            {/* Password Field */}
-            <div>
-              <label 
-                className="block text-sm font-semibold mb-2"
-                style={{ color: 'var(--color-warm-brown)' }}
-              >
-                <Lock className="inline h-4 w-4 mr-1" />
-                Password
-              </label>
-              <input
-                type="password"
-                className="input-field w-full"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-
-            {/* Error Message */}
-            {error && (
-              <div 
-                className="p-3 rounded-lg text-sm"
-                style={{ 
-                  background: 'rgba(183, 75, 75, 0.1)',
-                  color: 'var(--status-error)',
-                  border: '1px solid var(--status-error)'
-                }}
-              >
-                {error}
-              </div>
-            )}
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary w-full py-3 font-semibold rounded-xl hover:scale-105 transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  Signing in...
-                </>
-              ) : (
-                <>
-                  Sign In
-                  <ArrowRight className="h-5 w-5" />
-                </>
-              )}
-            </button>
-          </form>
-        </div>
-
-        {/* Sign Up Link */}
-        <div className="text-center mt-6">
-          <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
-            New to TripSync?{' '}
-            <Link 
-              href="/sign-up" 
-              className="font-semibold hover:underline"
-              style={{ color: 'var(--color-soft-terracotta)' }}
-            >
-              Create an account
-            </Link>
-          </p>
-        </div>
+        {/* Clerk Sign In Component */}
+        <SignIn 
+          appearance={{
+            elements: {
+              rootBox: "w-full",
+              card: "shadow-none bg-transparent",
+              headerTitle: "hidden",
+              headerSubtitle: "hidden",
+              socialButtonsBlockButton: "btn-secondary",
+              formButtonPrimary: "btn-primary",
+              footerActionLink: "text-[var(--color-soft-terracotta)] hover:underline",
+            },
+          }}
+          routing="path"
+          path="/sign-in"
+          signUpUrl="/sign-up"
+          afterSignInUrl="/"
+        />
 
         {/* Benefits */}
         <div 
