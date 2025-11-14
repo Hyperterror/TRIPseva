@@ -59,6 +59,7 @@ class ItineraryRequest(BaseModel):
     accommodation_preference: Optional[str] = None
 
 @app.get("/")
+@app.head("/")  # Add HEAD method for Render health checks
 def read_root():
     return {
         "message": "TripSync AI Itinerary API",
@@ -70,6 +71,7 @@ def read_root():
     }
 
 @app.get("/health")
+@app.head("/health")  # Add HEAD method for health checks
 def health_check():
     return {"status": "healthy", "service": "AI Itinerary Generator"}
 

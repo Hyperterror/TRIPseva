@@ -435,8 +435,9 @@ export default function TripDetailPage() {
                     setGenerating(true); 
                     setItinerary(null);
                     try {
+                      // Call Next.js API route which will call Python backend
                       const res = await axios.post(
-                        "http://localhost:8000/api/generate-itinerary", 
+                        "/api/itinerary/generate", 
                         { 
                           location: tripData.trip.location, 
                           date_from: tripData.trip.date_from, 
