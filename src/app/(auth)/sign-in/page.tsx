@@ -15,34 +15,80 @@ export default function CustomSignInPage() {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoaded) return;
+    if (!isLoaded || !signIn) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      const result = await signIn.create({ 
+      // Attempt to sign in with strategy
+      const signInAttempt = await signIn.create({ 
         identifier: email, 
-        password 
+        password,
+        strategy: "password"
       });
 
-      if (result.status === "complete") {
-        await setActive({ session: result.createdSessionId });
+      console.log("Sign-in attempt status:", signInAttempt.status);
+
+      // Handle complete sign-in
+      if (signInAttempt.status === "complete") {
+        await setActive({ session: signInAttempt.createdSessionId });
         
-        // Wait a bit for session to be fully set
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Small delay to ensure session is set
+        await new Promise(resolve => setTimeout(resolve, 200));
         
-        // Use router for proper navigation
+        // Redirect to home
         window.location.href = "/";
-      } else {
-        console.log("Incomplete sign-in:", result);
-        setError("Sign-in incomplete. Please try again.");
+        return;
       }
+
+      // If not complete, try to complete it with first factor
+      if (signInAttempt.status === "needs_first_factor") {
+        try {
+          const attemptFirstFactor = await signInAttempt.attemptFirstFactor({
+            strategy: "password",
+            password: password
+          });
+
+          if (attemptFirstFactor.status === "complete") {
+            await setActive({ session: attemptFirstFactor.createdSessionId });
+            await new Promise(resolve => setTimeout(resolve, 200));
+            window.location.href = "/";
+            return;
+          }
+        } catch (factorErr: any) {
+          console.error("First factor error:", factorErr);
+          throw factorErr;
+        }
+      }
+
+      // Handle other statuses
+      if (signInAttempt.status === "needs_second_factor") {
+        setError("Two-factor authentication is required. This feature is not yet supported.");
+      } else {
+        console.error("Unexpected sign-in status:", signInAttempt.status);
+        setError("Unable to complete sign-in. Please try again or contact support.");
+      }
+
     } catch (err: any) {
       console.error("Sign-in error:", err);
-      const errorMessage = err.errors?.[0]?.longMessage || 
-                          err.errors?.[0]?.message || 
-                          "Invalid email or password. Please try again.";
+      
+      // Extract error message
+      let errorMessage = "Invalid email or password. Please try again.";
+      
+      if (err.errors && err.errors.length > 0) {
+        errorMessage = err.errors[0].longMessage || err.errors[0].message;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      // Check for specific error codes
+      if (err.errors?.[0]?.code === "form_identifier_not_found") {
+        errorMessage = "No account found with this email. Please sign up first.";
+      } else if (err.errors?.[0]?.code === "form_password_incorrect") {
+        errorMessage = "Incorrect password. Please try again.";
+      }
+      
       setError(errorMessage);
     } finally {
       setLoading(false);
