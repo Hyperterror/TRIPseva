@@ -21,39 +21,39 @@ export default function CustomSignInPage() {
     setError(null);
 
     try {
-      // Attempt to sign in
-      const result = await signIn.create({
+      // Create sign-in attempt with password strategy
+      const signInAttempt = await signIn.create({
         identifier: email,
         password,
       });
 
-      console.log("Sign-in result status:", result.status);
+      console.log("Sign-in attempt status:", signInAttempt.status);
 
-      // If sign-in is complete, set the session
-      if (result.status === "complete") {
-        await setActive({ session: result.createdSessionId });
+      // Check if sign-in is complete
+      if (signInAttempt.status === "complete") {
+        await setActive({ session: signInAttempt.createdSessionId });
         window.location.href = "/";
         return;
       }
 
-      // If needs first factor (shouldn't happen with password, but handle it)
-      if (result.status === "needs_first_factor") {
-        console.log("Needs first factor - attempting password");
-        const firstFactorResult = await result.attemptFirstFactor({
+      // Handle needs_first_factor status
+      if (signInAttempt.status === "needs_first_factor") {
+        // Attempt first factor with password
+        const attemptResult = await signInAttempt.attemptFirstFactor({
           strategy: "password",
           password: password,
         });
 
-        if (firstFactorResult.status === "complete") {
-          await setActive({ session: firstFactorResult.createdSessionId });
+        if (attemptResult.status === "complete") {
+          await setActive({ session: attemptResult.createdSessionId });
           window.location.href = "/";
           return;
         }
       }
 
-      // If we get here, something unexpected happened
-      console.error("Unexpected sign-in status:", result.status);
-      setError("Unable to sign in. Please try again.");
+      // If we reach here, log the status and show error
+      console.error("Unexpected sign-in status:", signInAttempt.status, signInAttempt);
+      setError("Unable to complete sign-in. Please try again or contact support.");
 
     } catch (err: any) {
       console.error("Sign-in error:", err);
