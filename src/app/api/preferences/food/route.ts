@@ -94,6 +94,9 @@ export async function POST(request: NextRequest) {
     );
   } catch (error: any) {
     console.error("[POST /api/preferences/food] Error:", error);
+    console.error("[POST /api/preferences/food] Error name:", error.name);
+    console.error("[POST /api/preferences/food] Error message:", error.message);
+    console.error("[POST /api/preferences/food] Stack:", error.stack);
     
     if (error.name === 'ValidationError') {
       return NextResponse.json(
@@ -103,7 +106,11 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: "Failed to update food preferences" },
+      { 
+        error: "Failed to update food preferences",
+        details: error.message,
+        type: error.name
+      },
       { status: 500 }
     );
   }

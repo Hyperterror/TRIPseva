@@ -21,16 +21,29 @@ export default function CustomSignInPage() {
     setError(null);
 
     try {
-      const result = await signIn.create({ identifier: email, password });
+      const result = await signIn.create({ 
+        identifier: email, 
+        password 
+      });
 
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
+        
+        // Wait a bit for session to be fully set
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Use router for proper navigation
         window.location.href = "/";
       } else {
         console.log("Incomplete sign-in:", result);
+        setError("Sign-in incomplete. Please try again.");
       }
     } catch (err: any) {
-      setError(err.errors?.[0]?.longMessage || "Invalid credentials.");
+      console.error("Sign-in error:", err);
+      const errorMessage = err.errors?.[0]?.longMessage || 
+                          err.errors?.[0]?.message || 
+                          "Invalid email or password. Please try again.";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

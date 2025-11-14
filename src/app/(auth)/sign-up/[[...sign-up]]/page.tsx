@@ -34,7 +34,18 @@ export default function CustomSignUpPage() {
 
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        await axios.get("/api/createuser");
+        
+        // Wait for session to be fully set
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Create user in database
+        try {
+          await axios.get("/api/createuser");
+        } catch (dbError) {
+          console.error("Failed to create user in database:", dbError);
+          // Continue anyway - user exists in Clerk
+        }
+        
         // Redirect to preferences onboarding
         router.push("/onboarding/preferences");
       } else {
@@ -44,7 +55,11 @@ export default function CustomSignUpPage() {
         router.push("/verify-email");
       }
     } catch (err: any) {
-      setError(err.errors?.[0]?.longMessage || "Something went wrong.");
+      console.error("Sign-up error:", err);
+      const errorMessage = err.errors?.[0]?.longMessage || 
+                          err.errors?.[0]?.message || 
+                          "Something went wrong. Please try again.";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

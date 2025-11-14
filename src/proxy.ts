@@ -27,10 +27,19 @@ export default clerkMiddleware(async (auth, req) => {
   const pathname = currentUrl.pathname;
   const isApiRequest = pathname.startsWith("/api");
   
+  // Allow public routes
+  if (isPublicRoute(req)) {
+    return NextResponse.next();
+  }
+  
+  // Allow public API routes
+  if (isApiRequest && isPublicApiRoute(req)) {
+    return NextResponse.next();
+  }
+  
+  // Redirect unauthenticated users to sign-in
   if (!userId) {
-    if (!isPublicRoute(req) && !(isApiRequest && isPublicApiRoute(req))) {
-      return NextResponse.redirect(new URL("/sign-in", req.url));
-    }
+    return NextResponse.redirect(new URL("/sign-in", req.url));
   }
 
   return NextResponse.next();

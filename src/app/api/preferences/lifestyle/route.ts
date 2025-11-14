@@ -105,6 +105,9 @@ export async function POST(request: NextRequest) {
     );
   } catch (error: any) {
     console.error("[POST /api/preferences/lifestyle] Error:", error);
+    console.error("[POST /api/preferences/lifestyle] Error name:", error.name);
+    console.error("[POST /api/preferences/lifestyle] Error message:", error.message);
+    console.error("[POST /api/preferences/lifestyle] Stack:", error.stack);
     
     if (error.name === 'ValidationError') {
       return NextResponse.json(
@@ -114,7 +117,11 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: "Failed to update lifestyle preferences" },
+      { 
+        error: "Failed to update lifestyle preferences",
+        details: error.message,
+        type: error.name
+      },
       { status: 500 }
     );
   }
