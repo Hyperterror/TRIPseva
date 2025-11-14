@@ -42,11 +42,28 @@ export async function POST(req: Request) {
 
     let group = (await TripGroup.findOne({ tripRequestIds: trip._id }).lean()) as TripGroupType | null;
 
+    // Populate member details
+    let populatedGroup = null;
+    let isMember = false;
+    
     if (group && group.members) {
-      group.members = group.members.map((m: any) => m.toString());
-    }
+      const memberIds = group.members.map((m: any) => m.toString());
+      isMember = memberIds.includes(user.id);
+      
+      // Fetch user details for all members
+      const { User } = await import("@/models/userModel");
+      const memberDetails = await Promise.all(
+        memberIds.map(async (memberId: string) => {
+          const userDoc = await User.findOne({ userId: memberId }).lean();
+          return userDoc || { userId: memberId, name: "Unknown User" };
+        })
+      );
 
-    const isMember = group?.members?.includes(user.id) || false;
+      populatedGroup = {
+        ...group,
+        members: memberDetails,
+      };
+    }
 
     let invitation = null;
     if (!isMember && group) {
@@ -58,7 +75,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ 
       trip, 
-      group, 
+      group: populatedGroup, 
       isMember, 
       invitation,
       isCreator,

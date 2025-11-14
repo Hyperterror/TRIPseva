@@ -157,7 +157,7 @@ export async function POST(
 
     // If accepted, add user to trip group
     if (action === "accept") {
-      const group = await TripGroup.findOne({ tripId });
+      const group = await TripGroup.findOne({ tripRequestIds: tripId });
       
       if (group) {
         // Check if user is already a member
@@ -168,8 +168,10 @@ export async function POST(
       } else {
         // Create new group if it doesn't exist
         await TripGroup.create({
-          tripId,
+          tripRequestIds: [tripId],
           members: [trip.userId, invitation.invitedUserId],
+          location: trip.location,
+          groupId: `group_${tripId}_${Date.now()}`,
         });
       }
     }
