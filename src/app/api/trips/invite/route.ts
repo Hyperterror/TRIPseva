@@ -19,18 +19,40 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Trip ID missing" }, { status: 400 });
     }
 
-    // Check if a pending or existing invitation already exists for this user
-    const existingInvitation = await TripInvitation.findOne({
+    // Check if user is already a member of the trip group
+    const { TripGroup } = await import("@/models/TripGroup");
+    const group = await TripGroup.findOne({ tripRequestIds: tripId });
+    
+    if (group && group.members) {
+      const memberIds = group.members.map((m: any) => m.toString());
+      if (memberIds.includes(user.id)) {
+        return NextResponse.json(
+          { error: "You are already a member of this trip" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Check if a PENDING invitation already exists for this user
+    const pendingInvitation = await TripInvitation.findOne({
       tripId,
       invitedUserId: user.id,
+      status: "pending",
     });
 
-    if (existingInvitation) {
+    if (pendingInvitation) {
       return NextResponse.json(
-        { error: "You already have a pending or existing invitation for this trip" },
+        { error: "You already have a pending request for this trip" },
         { status: 400 }
       );
     }
+
+    // Delete any old rejected/accepted invitations to allow re-requesting
+    await TripInvitation.deleteMany({
+      tripId,
+      invitedUserId: user.id,
+      status: { $in: ["accepted", "rejected"] },
+    });
 
     // Create new invitation
     const invitation = await TripInvitation.create({
@@ -41,7 +63,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(
-      { message: "Invitation created successfully", invitation },
+      { message: "Request sent successfully", invitation },
       { status: 200 }
     );
   } catch (error) {

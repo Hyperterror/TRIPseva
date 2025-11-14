@@ -105,13 +105,12 @@ export default function TripDetailPage() {
 
   // 🔹 Send message
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !tripData?.group?._id) return;
+    if (!newMessage.trim() || !tripData?.group?._id || !tripData?.currentUserId) return;
     setSending(true);
     try {
-      const senderId = "USER_ID_HERE"; // replace with actual logged-in userId
       await axios.post("/api/trips/messages", {
         tripGroupId: tripData.group._id,
-        senderId,
+        senderId: tripData.currentUserId,
         messageText: newMessage,
       });
       setNewMessage("");
@@ -368,7 +367,7 @@ export default function TripDetailPage() {
                           className="font-semibold"
                           style={{ color: 'var(--color-soft-terracotta)' }}
                         >
-                          {msg.senderId?.name || "Unknown"}
+                          {msg.senderId?.username || msg.senderId?.name || msg.senderId?.email || "Unknown"}
                         </span>: {msg.messageText}
                       </p>
                       <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
