@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
     const ratingsWithUserInfo = await Promise.all(
       ratings.map(async (rating) => {
         const ratedUser = await User.findOne({ userId: rating.ratedUserId });
+        const ratingId = rating._id?.toString() || '';
         return {
           _id: rating._id,
           starRating: rating.starRating,
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
             name: ratedUser.name,
             profileImg: ratedUser.profileImg
           } : null,
-          canEdit: await ratingService.canEditRating(rating._id.toString(), userId)
+          canEdit: await ratingService.canEditRating(ratingId, userId)
         };
       })
     );

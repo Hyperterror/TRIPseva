@@ -10,7 +10,7 @@ import { ratingService } from "@/services/RatingService";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     await connect();
@@ -24,7 +24,7 @@ export async function GET(
       );
     }
 
-    const { userId } = params;
+    const { userId } = await params;
 
     // Verify user exists
     const user = await User.findOne({ userId });

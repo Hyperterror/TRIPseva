@@ -10,7 +10,7 @@ import mongoose from "mongoose";
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { ratingId: string } }
+  { params }: { params: Promise<{ ratingId: string }> }
 ) {
   try {
     await connect();
@@ -24,7 +24,7 @@ export async function POST(
       );
     }
 
-    const { ratingId } = params;
+    const { ratingId } = await params;
 
     // Validate ratingId format
     if (!mongoose.Types.ObjectId.isValid(ratingId)) {

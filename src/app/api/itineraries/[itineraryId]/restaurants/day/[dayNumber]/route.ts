@@ -10,7 +10,7 @@ import mongoose from "mongoose";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { itineraryId: string; dayNumber: string } }
+  { params }: { params: Promise<{ itineraryId: string; dayNumber: string }> }
 ) {
   try {
     await connect();
@@ -24,7 +24,7 @@ export async function GET(
       );
     }
 
-    const { itineraryId, dayNumber } = params;
+    const { itineraryId, dayNumber } = await params;
 
     // Validate itineraryId format
     if (!mongoose.Types.ObjectId.isValid(itineraryId)) {
