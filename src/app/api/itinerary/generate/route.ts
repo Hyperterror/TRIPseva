@@ -19,10 +19,20 @@ export async function POST(request: NextRequest) {
     if (!apiKey) {
       console.error("GEMINI_API_KEY not configured");
       return NextResponse.json(
-        { error: "AI service not configured" },
+        { error: "AI service not configured. Please add GEMINI_API_KEY to environment variables." },
         { status: 500 }
       );
     }
+    
+    if (apiKey === "your_gemini_api_key_here") {
+      console.error("GEMINI_API_KEY is placeholder value");
+      return NextResponse.json(
+        { error: "Please replace GEMINI_API_KEY with your actual API key from Google AI Studio." },
+        { status: 500 }
+      );
+    }
+    
+    console.log("[Itinerary] API key configured, length:", apiKey.length);
 
     // Parse request body
     const body = await request.json();
@@ -37,14 +47,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch user preferences for personalization
-    const { FoodPreferences } = await import("@/models/FoodPreferences");
-    const { UserPreferences } = await import("@/models/UserPreferences");
-    const { connect } = await import("@/db/dbconfig");
+    let foodPrefs = null;
+    let lifestylePrefs = null;
     
-    await connect();
-    
-    const foodPrefs = await FoodPreferences.findOne({ userId }).lean();
-    const lifestylePrefs = await UserPreferences.findOne({ userId }).lean();
+    try {
+      const { FoodPreferences } = await import("@/models/FoodPreferences");
+      const { UserPreferences } = await import("@/models/UserPreferences");
+      const { connect } = await import("@/db/dbconfig");
+      
+      await connect();
+      
+      foodPrefs = await FoodPreferences.findOne({ userId }).lean();
+      lifestylePrefs = await UserPreferences.findOne({ userId }).lean();
+    } catch (prefError) {
+      console.log("[Preferences fetch] Could not fetch preferences, continuing without them:", prefError);
+      // Continue without preferences - not critical
+    }
 
     // Calculate trip duration
     const startDate = new Date(date_from);
@@ -130,13 +148,30 @@ Start with Day 1 and provide the complete itinerary.`;
 
     // Generate itinerary with system prompt
     const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
+    
+    console.log("[Itinerary] Sending request to Gemini...");
     const result = await model.generateContent(fullPrompt);
-    const response = await result.response;
+    
+    console.log("[Itinerary] Received response from Gemini");
+    console.log("[Itinerary] Result:", JSON.stringify(result, null, 2));
+    
+    const response = result.response;
+    
+    if (!response) {
+      console.error("[Itinerary] No response from Gemini");
+      return NextResponse.json(
+        { error: "No response from AI service" },
+        { status: 500 }
+      );
+    }
+    
     const itinerary = response.text();
+    console.log("[Itinerary] Generated itinerary length:", itinerary?.length || 0);
 
     if (!itinerary || itinerary.trim().length === 0) {
+      console.error("[Itinerary] Empty itinerary generated");
       return NextResponse.json(
-        { error: "Failed to generate itinerary" },
+        { error: "AI generated empty itinerary. Please try again." },
         { status: 500 }
       );
     }
@@ -154,11 +189,13 @@ Start with Day 1 and provide the complete itinerary.`;
     );
   } catch (error: any) {
     console.error("[POST /api/itinerary/generate] Error:", error);
+    console.error("[POST /api/itinerary/generate] Error message:", error.message);
+    console.error("[POST /api/itinerary/generate] Error stack:", error.stack);
 
     // Handle specific Gemini API errors
-    if (error.message?.includes("API key")) {
+    if (error.message?.includes("API key") || error.message?.includes("API_KEY")) {
       return NextResponse.json(
-        { error: "Invalid API key configuration" },
+        { error: "Invalid API key configuration. Please check GEMINI_API_KEY in environment variables." },
         { status: 500 }
       );
     }
@@ -170,10 +207,18 @@ Start with Day 1 and provide the complete itinerary.`;
       );
     }
 
+    if (error.message?.includes("SAFETY")) {
+      return NextResponse.json(
+        { error: "Content filtered by AI safety settings. Please try with different trip details." },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       {
-        error: "Failed to generate itinerary",
-        details: error.message,
+        error: "Failed to generate itinerary. Server error: 500. Please try again later.",
+        details: error.message || "Unknown error",
+        type: error.name || "Error",
       },
       { status: 500 }
     );
