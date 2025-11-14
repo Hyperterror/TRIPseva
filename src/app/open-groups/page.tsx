@@ -301,11 +301,20 @@ export default function OpenGroupsPage() {
           <div className="card-featured p-12 text-center">
             <Users className="h-16 w-16 mx-auto mb-4" style={{ color: 'var(--color-sage-green)' }} />
             <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--color-warm-brown)' }}>
-              No groups found
+              No compatible groups found
             </h3>
-            <p style={{ color: 'var(--text-secondary)' }}>
-              Try adjusting your filters or check back later for new groups
+            <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>
+              Open Groups shows trips created by other users that match your preferences.
             </p>
+            <div className="text-sm space-y-2" style={{ color: 'var(--text-tertiary)' }}>
+              <p>💡 <strong>Tip:</strong> You won't see your own trips here - only trips created by others!</p>
+              <p>Try:</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>Lowering the compatibility threshold</li>
+                <li>Clearing filters</li>
+                <li>Checking back later as more users create trips</li>
+              </ul>
+            </div>
           </div>
         )}
 
