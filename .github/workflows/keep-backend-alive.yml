@@ -1,0 +1,44 @@
+name: Keep Backend Alive
+
+on:
+  schedule:
+    # Run every 10 minutes to prevent Render from spinning down
+    - cron: '*/10 * * * *'
+  
+  # Allow manual trigger from GitHub Actions tab
+  workflow_dispatch:
+
+jobs:
+  ping-backend:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Ping Backend Health Endpoint
+        run: |
+          echo "🔥 Pinging backend to keep it alive..."
+          
+          # Ping the health endpoint
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" https://tripsync-ai-backend.onrender.com/health || echo "000")
+          
+          if [ "$RESPONSE" = "200" ]; then
+            echo "✅ Backend is alive (HTTP $RESPONSE)"
+          else
+            echo "⚠️ Backend returned HTTP $RESPONSE"
+            # Don't fail the workflow, just log it
+          fi
+          
+          echo "Ping completed at $(date)"
+      
+      - name: Ping Root Endpoint
+        run: |
+          echo "🔥 Pinging root endpoint..."
+          
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" https://tripsync-ai-backend.onrender.com/ || echo "000")
+          
+          if [ "$RESPONSE" = "200" ]; then
+            echo "✅ Root endpoint is alive (HTTP $RESPONSE)"
+          else
+            echo "⚠️ Root endpoint returned HTTP $RESPONSE"
+          fi
+          
+          echo "Keep-alive completed successfully"

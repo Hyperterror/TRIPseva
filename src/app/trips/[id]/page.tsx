@@ -75,6 +75,7 @@ export default function TripDetailPage() {
 
   const [itinerary, setItinerary] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [warmingUp, setWarmingUp] = useState(false);
 
   // 🔹 Fetch trip details
   const fetchTrip = async () => {
@@ -434,6 +435,13 @@ export default function TripDetailPage() {
                     if (!tripData) return;
                     setGenerating(true); 
                     setItinerary(null);
+                    setWarmingUp(true);
+                    
+                    // Show warming up message after 3 seconds
+                    const warmupTimer = setTimeout(() => {
+                      setWarmingUp(false);
+                    }, 3000);
+                    
                     try {
                       // Call Next.js API route which will call Python backend
                       const res = await axios.post(
@@ -446,9 +454,12 @@ export default function TripDetailPage() {
                           group_size: tripData.trip.group_size_pref 
                         },
                         {
-                          timeout: 60000, // 60 second timeout for AI generation
+                          timeout: 90000, // 90 second timeout for AI generation
                         }
                       );
+                      
+                      clearTimeout(warmupTimer);
+                      setWarmingUp(false);
                       
                       if (res.data && res.data.itinerary) {
                         setItinerary(res.data.itinerary);
@@ -456,16 +467,22 @@ export default function TripDetailPage() {
                         setItinerary("❌ No itinerary returned. Please try again.");
                       }
                     } catch (err: any) {
+                      clearTimeout(warmupTimer);
+                      setWarmingUp(false);
                       console.error("Itinerary generation error:", err);
                       
                       let errorMessage = "❌ Failed to generate itinerary. ";
                       
                       if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
-                        errorMessage += "The request timed out. The AI service might be slow. Please try again.";
+                        errorMessage += "The request timed out. The backend might be warming up. Please try again in 30 seconds.";
                       } else if (err.response) {
-                        errorMessage += `Server error: ${err.response.status}. Please try again later.`;
+                        if (err.response.status === 503) {
+                          errorMessage += "Backend service is starting up. Please wait 30 seconds and try again.";
+                        } else {
+                          errorMessage += `Server error: ${err.response.status}. Please try again later.`;
+                        }
                       } else if (err.request) {
-                        errorMessage += "Cannot reach the AI service. Please check your internet connection.";
+                        errorMessage += "Cannot reach the AI service. The backend might be offline. Please try again in 1 minute.";
                       } else {
                         errorMessage += "Please try again.";
                       }
@@ -476,12 +493,11 @@ export default function TripDetailPage() {
                     }
                   }}
                   disabled={generating}
-                  className="btn-primary w-full py-3 rounded-xl font-semibold hover:scale-105 transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
+                  className="btn-primary w-full py-3 rounded-xl font-semibold hover:scale-105 transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"                >
                   {generating ? (
                     <>
                       <Loader2 className="animate-spin w-5 h-5" />
-                      Generating...
+                      {warmingUp ? 'Warming up AI...' : 'Generating...'}
                     </>
                   ) : (
                     <>
@@ -490,6 +506,32 @@ export default function TripDetailPage() {
                     </>
                   )}
                 </button>
+
+                {generating && (
+                  <div 
+                    className="mt-3 p-3 rounded-lg text-sm"
+                    style={{ 
+                      background: 'var(--bg-secondary)',
+                      color: 'var(--text-secondary)'
+                    }}
+                  >
+                    {warmingUp ? (
+                      <p className="flex items-center gap-2">
+                        <Loader2 className="animate-spin w-4 h-4" style={{ color: 'var(--color-warm-gold)' }} />
+                        <span>
+                          Warming up AI service... This may take 30-60 seconds on first request.
+                        </span>
+                      </p>
+                    ) : (
+                      <p className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4" style={{ color: 'var(--color-soft-terracotta)' }} />
+                        <span>
+                          Creating your personalized itinerary...
+                        </span>
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 {itinerary && (
                   <div 
