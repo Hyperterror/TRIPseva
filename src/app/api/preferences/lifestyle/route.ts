@@ -2,6 +2,7 @@ import { connect } from "@/db/dbconfig";
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { UserPreferences } from "@/models/UserPreferences";
+import { SearchIndexManager } from "@/services/SearchIndexManager";
 
 /**
  * POST /api/preferences/lifestyle
@@ -95,6 +96,17 @@ export async function POST(request: NextRequest) {
       { $set: updateData },
       { new: true, upsert: true, runValidators: true }
     );
+
+    // Update search index after successful preference update
+    try {
+      const indexResult = await SearchIndexManager.indexUserProfile(userId);
+      if (!indexResult.success) {
+        console.warn(`[Lifestyle Preferences] Search indexing failed for user ${userId}:`, indexResult.error);
+      }
+    } catch (indexError) {
+      // Log but don't fail the request if indexing fails
+      console.error(`[Lifestyle Preferences] Search indexing error for user ${userId}:`, indexError);
+    }
 
     return NextResponse.json(
       {

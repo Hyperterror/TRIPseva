@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { UserPreferences } from "@/models/UserPreferences";
 import { FoodPreferences } from "@/models/FoodPreferences";
+import { SearchIndexManager } from "@/services/SearchIndexManager";
 
 /**
  * DELETE /api/preferences/delete
@@ -29,6 +30,19 @@ export async function DELETE(request: NextRequest) {
 
     const deletedCount =
       lifestyleResult.deletedCount + foodResult.deletedCount;
+
+    // Remove from search index if any preferences were deleted
+    if (deletedCount > 0) {
+      try {
+        const indexResult = await SearchIndexManager.removeUserProfile(userId);
+        if (!indexResult.success) {
+          console.warn(`[Delete Preferences] Search index removal failed for user ${userId}:`, indexResult.error);
+        }
+      } catch (indexError) {
+        // Log but don't fail the request if index removal fails
+        console.error(`[Delete Preferences] Search index removal error for user ${userId}:`, indexError);
+      }
+    }
 
     if (deletedCount === 0) {
       return NextResponse.json(

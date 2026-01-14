@@ -133,9 +133,84 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Convert itinerary object to markdown string
+    let itineraryMarkdown = "";
+    
+    if (typeof data.itinerary === "string") {
+      // Already a string, use as-is
+      itineraryMarkdown = data.itinerary;
+    } else if (typeof data.itinerary === "object") {
+      // Convert object to markdown format
+      itineraryMarkdown = `# ${data.destination || location} - ${durationDays} Day Itinerary\n\n`;
+      
+      // Add each day
+      const days = Object.keys(data.itinerary).sort();
+      for (const day of days) {
+        const dayData = data.itinerary[day];
+        itineraryMarkdown += `## ${day}\n\n`;
+        
+        // Add morning activities
+        if (dayData.morning && Array.isArray(dayData.morning)) {
+          itineraryMarkdown += `### Morning\n\n`;
+          for (const activity of dayData.morning) {
+            itineraryMarkdown += `**${activity.time || ""}** - **${activity.activity || "Activity"}**\n`;
+            itineraryMarkdown += `${activity.description || ""}\n`;
+            if (activity.cost) {
+              itineraryMarkdown += `*Cost: $${activity.cost}*\n`;
+            }
+            itineraryMarkdown += `\n`;
+          }
+        }
+        
+        // Add afternoon activities
+        if (dayData.afternoon && Array.isArray(dayData.afternoon)) {
+          itineraryMarkdown += `### Afternoon\n\n`;
+          for (const activity of dayData.afternoon) {
+            itineraryMarkdown += `**${activity.time || ""}** - **${activity.activity || "Activity"}**\n`;
+            itineraryMarkdown += `${activity.description || ""}\n`;
+            if (activity.cost) {
+              itineraryMarkdown += `*Cost: $${activity.cost}*\n`;
+            }
+            itineraryMarkdown += `\n`;
+          }
+        }
+        
+        // Add evening activities
+        if (dayData.evening && Array.isArray(dayData.evening)) {
+          itineraryMarkdown += `### Evening\n\n`;
+          for (const activity of dayData.evening) {
+            itineraryMarkdown += `**${activity.time || ""}** - **${activity.activity || "Activity"}**\n`;
+            itineraryMarkdown += `${activity.description || ""}\n`;
+            if (activity.cost) {
+              itineraryMarkdown += `*Cost: $${activity.cost}*\n`;
+            }
+            itineraryMarkdown += `\n`;
+          }
+        }
+        
+        itineraryMarkdown += `---\n\n`;
+      }
+      
+      // Add budget breakdown if available
+      if (data.budgetBreakdown) {
+        itineraryMarkdown += `## Budget Breakdown\n\n`;
+        itineraryMarkdown += `**Total Cost:** $${data.budgetBreakdown.totalCost || 0}\n\n`;
+        
+        if (data.budgetBreakdown.dailyCosts && Array.isArray(data.budgetBreakdown.dailyCosts)) {
+          itineraryMarkdown += `### Daily Costs\n\n`;
+          for (const dayCost of data.budgetBreakdown.dailyCosts) {
+            itineraryMarkdown += `- Day ${dayCost.day}: $${dayCost.total}\n`;
+          }
+        }
+      }
+    } else {
+      // Fallback
+      itineraryMarkdown = "Unable to format itinerary. Please try again.";
+    }
+
     return NextResponse.json(
       {
-        itinerary: data.itinerary,
+        itinerary: itineraryMarkdown,
         metadata: data.metadata,
       },
       { status: 200 }
