@@ -7,8 +7,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
  */
 export async function GET() {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
-    
+    const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
+
     if (!apiKey) {
       return NextResponse.json({
         success: false,
@@ -25,12 +25,12 @@ export async function GET() {
 
     // Simple test prompt
     const prompt = "Say 'Hello from Gemini!' in one sentence.";
-    
+
     console.log("[Test Gemini] Sending test prompt...");
     const result = await model.generateContent(prompt);
     const response = result.response;
     const text = response.text();
-    
+
     console.log("[Test Gemini] Success! Response:", text);
 
     return NextResponse.json({

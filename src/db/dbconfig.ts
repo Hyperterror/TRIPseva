@@ -7,7 +7,7 @@ export async function connect() {
     return;
   }
 
-  const dbUri = process.env.MONGO_URI;
+  const dbUri = process.env.MONGO_URI || process.env.MONGODB_URI;
   if (!dbUri) {
     throw new Error("Please define the MONGO_URI in your .env");
   }
